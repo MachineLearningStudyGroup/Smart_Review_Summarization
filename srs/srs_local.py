@@ -7,14 +7,14 @@ from sentiment_plot import box_plot
 from database import upsert_contents_for_product_id, update_for_product_id, update_contents_for_product_id, select_for_product_id
 import os
 
-def get_ft_dicts_from_contents(contents, predictor):
+def get_ft_dicts_from_contents(contents, predictor, start_idx = 0):
 	sentences = []
 	for cont in contents:
 		sentences.append(Sentence(content=cont))
 	
 	predictor.predict_for_sentences(sentences)	#if Maxentropy, the cp_threshold=0.5, if Word2Vec, the cp_threshold should be 0.85 for criteria_for_choosing_class = "max", similarity_measure = "max"
 	get_sentiment_score_for_sentences(sentences)
-	return get_ftScore_ftSenIdx_dicts(sentences)
+	return get_ftScore_ftSenIdx_dicts(sentences, start_idx)
 	
 
 def fill_in_db(product_id, predictor_name = 'MaxEntropy', review_ratio_threshold = 0.8, scrape_time_limit = 30):	
@@ -63,11 +63,12 @@ def fill_in_db(product_id, predictor_name = 'MaxEntropy', review_ratio_threshold
 			predictor = loadTrainedPredictor(predictor_name)
 			if len(prod_contents_new) > 0:
 				print "Filling scraped new reviews into db..."
-				if len(prod_ft_score_dict) == 0 or len(prod_ft_senIdx_dict) == 0:
+				if len(prod_ft_score_dict) == 0 or len(prod_ft_senIdx_dict) == 0:				
 					prod_contents = prod_contents + prod_contents_new
-					prod_ft_score_dict, prod_ft_senIdx_dict = get_ft_dicts_from_contents(prod_contents, predictor)
-				else:
-					prod_ft_score_dict, prod_ft_senIdx_dict = get_ft_dicts_from_contents(prod_contents_new, predictor)
+					prod_ft_score_dict, prod_ft_senIdx_dict = get_ft_dicts_from_contents(prod_contents, predictor, start_idx = 0)
+				else: # already has ft_scores calculated for previous contents:
+					start_idx = len(prod_contents)
+					prod_ft_score_dict, prod_ft_senIdx_dict = get_ft_dicts_from_contents(prod_contents_new, predictor, start_idx = start_idx)
 				
 				# append new entry to existing entry
 				update_contents_for_product_id(product_id, prod_contents_new, prod_review_ids, \

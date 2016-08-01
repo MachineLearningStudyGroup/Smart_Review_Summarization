@@ -37,7 +37,7 @@ def get_sentiment_score_for_sentences(sentences):
     for sentence in sentences:
         get_sentiment_score(sentence)
 
-def get_ftScore_ftSenIdx_dicts(sentences,forbidden_feature='no feature'):
+def get_ftScore_ftSenIdx_dicts(sentences, start_idx = 0, forbidden_feature='no feature'):
     '''
     sentences: a list of sentence object
     staticPredictor object
@@ -49,6 +49,6 @@ def get_ftScore_ftSenIdx_dicts(sentences,forbidden_feature='no feature'):
         ft = sentence.static_aspect
         if not ft == forbidden_feature:
             ft_score_dict[ft].append(sentence.score)
-            ft_senIdx_dict[ft].append(idx)
+            ft_senIdx_dict[ft].append(idx + start_idx)
 
     return ft_score_dict, ft_senIdx_dict
