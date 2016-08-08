@@ -157,13 +157,18 @@ class Reviews(object):
             self._soup = BeautifulSoup(r.text, html_parser)
         return self._soup
 
-    def full_reviews(self):
-        page = self
-        while page:
-            for review_id in page.ids:
-                yield self.api.review(Id=review_id)
-            page = Reviews(page.api, URL=page.next_page_url) if page.next_page_url else None
+    # def full_reviews(self):
+    #     page = self
+    #     while page:
+    #         for review_id in page.ids:
+    #             yield self.api.review(Id=review_id)
+    #         page = Reviews(page.api, URL=page.next_page_url) if page.next_page_url else None
 
+    def full_reviews(self):
+        page = self 
+        for review_id in page.ids:
+            yield self.api.review(Id=review_id)
+            
     @property
     def brief_reviews(self):
         for review_id in self.ids:
