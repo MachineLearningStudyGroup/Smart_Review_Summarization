@@ -41,20 +41,6 @@ def load_db_from_files():
 
 	disconnect_db(client)
 
-def has_product_id(product_id):
-	client, db = connect_to_db()
-	query_res = list(db.product_collection.find({"product_id": product_id}))
-	disconnect_db(client)
-	
-	return len(query_res) > 0
-
-def has_review_id(product_id,review_id):
-	client, db = connect_to_db()
-	query_res = list(db.product_collection.find({"$and":[{"product_id": product_id},{"review_ids": review_id}]}))
-	disconnect_db(client)
-	
-	return len(query_res) > 0
-
 def select_for_product_id(product_id):
 	client, db = connect_to_db()
 	query_res = list(db.product_collection.find({"product_id": product_id}))

@@ -8,7 +8,7 @@ import os.path
 from utilities import getSentencesFromReview, Sentence, Review, Product, loadScraperDataFromDB
 import nltk
 from srs import settings
-from database import has_product_id, upsert_contents_for_product_id, has_review_id
+from database import select_for_product_id, upsert_contents_for_product_id
 from lxml import html
 import requests
 from fake_useragent import UserAgent #install at: https://pypi.python.org/pypi/fake-useragent
@@ -35,7 +35,7 @@ class AmazonReviewScraper:
         else:
             return ""
 
-    def process_reviews(self, rs, checker, item_id, id_list, start_time, scrape_time_limit):
+    def process_reviews(self, rs, item_id, id_db, id_list, start_time, scrape_time_limit):
         """
         Inputs: Amazon Reviews object, and a filehandle.
         Output: Returns number of reviews processed. Writes reviews to file.
@@ -49,6 +49,10 @@ class AmazonReviewScraper:
         review_ids = []
         ratings =[]
         review_sentence_num = []
+        checker = len(id_db) > 0
+        print checker
+        print id_db
+        print id_list
         for r in rs.full_reviews():
             current_time = time.time()
            
@@ -64,7 +68,7 @@ class AmazonReviewScraper:
                         continue
                     else:
                         if checker: # if we need to check reviewID
-                            if has_review_id(item_id, r.id):
+                            if r.id in id_db:
                                 print 'scraped review is passed as it is in db'
                                 continue 
                             else: 
@@ -97,7 +101,7 @@ class AmazonReviewScraper:
 
         return count, contents, review_ids, ratings, review_sentence_num
 
-    def scrape_reviews(self, item_id, checker = False, scrape_time_limit = 30):
+    def scrape_reviews(self, item_id, query_res, scrape_time_limit = 30):
         """
         Fetches reviews for the Amazon product with the specified ItemId. 
         """
@@ -115,9 +119,13 @@ class AmazonReviewScraper:
         review_sentence_num = []
         product_name = p.title
         id_list = []
+        if len(query_res) > 0:
+            id_db = query_res[0]["review_ids"]
+        else:
+            id_db = []
         while current_time - start_time < scrape_time_limit:
             page_count += 1
-            result_tup = self.process_reviews(rs, checker, item_id, id_list, start_time, scrape_time_limit)
+            result_tup = self.process_reviews(rs, item_id, id_db, id_list, start_time, scrape_time_limit)
             count += result_tup[0]
             contents.extend(result_tup[1])
             review_ids.extend(result_tup[2])
@@ -129,7 +137,7 @@ class AmazonReviewScraper:
             print "time passed: %fs"%(current_time - start_time)
 
             if not rs.next_page_url:
-                result_tup = self.process_reviews(rs, checker, item_id, id_list, start_time, scrape_time_limit)
+                result_tup = self.process_reviews(rs, item_id, id_db, id_list, start_time, scrape_time_limit)
                 count += result_tup[0]
                 contents.extend(result_tup[1])
                 review_ids.extend(result_tup[2])
@@ -296,11 +304,13 @@ def scrape_num_review_and_category(productID, max_scrape_loop = 2, current_loop=
 
 
 def main(amazonScraper, product_id, checker = False, scrape_time_limit = 30):
-    if has_product_id(product_id):
+    query_res = select_for_product_id(product_id)
+    print query_res
+    if len(query_res) > 0:
         # if product in db, checker is turned on to check for conflict review
         checker = True
     try: 
-        product_name, contents, review_ids, ratings, review_ending_sentence = amazonScraper.scrape_reviews(product_id, checker, scrape_time_limit)
+        product_name, contents, review_ids, ratings, review_ending_sentence = amazonScraper.scrape_reviews(product_id, query_res, scrape_time_limit)
         if len(contents) > 0:
             return product_name, contents, review_ids, ratings, review_ending_sentence
         else:
