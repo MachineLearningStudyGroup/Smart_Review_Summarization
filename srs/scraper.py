@@ -50,9 +50,7 @@ class AmazonReviewScraper:
         ratings =[]
         review_sentence_num = []
         checker = len(id_db) > 0
-        print checker
-        print id_db
-        print id_list
+        
         for r in rs.full_reviews():
             current_time = time.time()
            
@@ -101,7 +99,7 @@ class AmazonReviewScraper:
 
         return count, contents, review_ids, ratings, review_sentence_num
 
-    def scrape_reviews(self, item_id, query_res, scrape_time_limit = 30):
+    def scrape_reviews(self, item_id, prod_review_ids_db, scrape_time_limit = 30):
         """
         Fetches reviews for the Amazon product with the specified ItemId. 
         """
@@ -119,13 +117,9 @@ class AmazonReviewScraper:
         review_sentence_num = []
         product_name = p.title
         id_list = []
-        if len(query_res) > 0:
-            id_db = query_res[0]["review_ids"]
-        else:
-            id_db = []
         while current_time - start_time < scrape_time_limit:
             page_count += 1
-            result_tup = self.process_reviews(rs, item_id, id_db, id_list, start_time, scrape_time_limit)
+            result_tup = self.process_reviews(rs, item_id, prod_review_ids_db, id_list, start_time, scrape_time_limit)
             count += result_tup[0]
             contents.extend(result_tup[1])
             review_ids.extend(result_tup[2])
@@ -137,7 +131,7 @@ class AmazonReviewScraper:
             print "time passed: %fs"%(current_time - start_time)
 
             if not rs.next_page_url:
-                result_tup = self.process_reviews(rs, item_id, id_db, id_list, start_time, scrape_time_limit)
+                result_tup = self.process_reviews(rs, item_id, prod_review_ids_db, id_list, start_time, scrape_time_limit)
                 count += result_tup[0]
                 contents.extend(result_tup[1])
                 review_ids.extend(result_tup[2])
@@ -204,7 +198,7 @@ def getWebPage(productID):
     doc = html.fromstring(page.content)
     return doc
 
-def scrape_reviews_hard(productID, checker = False, max_scrape_loop = 1, current_loop=0):
+def scrape_reviews_hard(productID, prod_review_ids_db, max_scrape_loop = 1, current_loop=0):
     '''
     This method scraps directly from website and does not need userID or the AmazonScrape object
     However, it can only scrape the 5 top ranked review. 
@@ -232,11 +226,11 @@ def scrape_reviews_hard(productID, checker = False, max_scrape_loop = 1, current
             ind_new_review = []
             for index in range(len(review_ids)):
                 review_id = review_ids[index]
-                if checker:                
-                    if has_review_id(productID, review_id): 
-                        continue
-                    else:
-                        ind_new_review.append(index)
+                if review_id in prod_review_ids_db:
+                    print "scraped review is passed by backup_scraper as it is in db"
+                    continue
+                else:
+                    ind_new_review.append(index)
                 XPATH_REVIEW_BODY = '//div[contains(@id, "revData-dpReviewsMostHelpfulAUI-%s")]/div//text()' % review_id
                 RAW_REVIEW_BODY = doc.xpath(XPATH_REVIEW_BODY)
 
@@ -245,18 +239,18 @@ def scrape_reviews_hard(productID, checker = False, max_scrape_loop = 1, current
                     review = RAW_REVIEW.strip().encode('utf-8').decode('utf-8')
                     review_content += (review + " ")
                 review_sentences = getSentencesFromReview(review_content)
+                print "First sentence: {0}".format(review_sentences[0])
                 sentence_num = len(review_sentences)
                 review_sentence_num.append(sentence_num)
                 contents.extend(review_sentences)
 
-            if checker:
-                if len(ind_new_review) > 0:
-                    print('new reviews available from scrape_reviews_hard')
-                    review_ids = [review_ids[j] for j in ind_new_review]
-                    ratings = [ratings[j] for j in ind_new_review]
-                else:
-                    review_ids = []
-                    ratings = []
+            if len(ind_new_review) > 0:
+                print('new reviews available from scrape_reviews_hard')
+                review_ids = [review_ids[j] for j in ind_new_review]
+                ratings = [ratings[j] for j in ind_new_review]
+            else:
+                review_ids = []
+                ratings = []
 
             #Getting review_ending_sentence:
             if len(review_sentence_num) == 0:
@@ -303,23 +297,18 @@ def scrape_num_review_and_category(productID, max_scrape_loop = 2, current_loop=
             return scrape_num_review_and_category(productID, max_scrape_loop, current_loop)
 
 
-def main(amazonScraper, product_id, checker = False, scrape_time_limit = 30):
-    query_res = select_for_product_id(product_id)
-    print query_res
-    if len(query_res) > 0:
-        # if product in db, checker is turned on to check for conflict review
-        checker = True
+def main(amazonScraper, product_id, prod_review_ids_db, scrape_time_limit = 30):
     try: 
-        product_name, contents, review_ids, ratings, review_ending_sentence = amazonScraper.scrape_reviews(product_id, query_res, scrape_time_limit)
+        product_name, contents, review_ids, ratings, review_ending_sentence = amazonScraper.scrape_reviews(product_id, prod_review_ids_db, scrape_time_limit)
         if len(contents) > 0:
             return product_name, contents, review_ids, ratings, review_ending_sentence
         else:
             print "Amazon API scraper does not return contents, try backup scraper..."
-            return scrape_reviews_hard(product_id, checker)
+            return scrape_reviews_hard(product_id, prod_review_ids_db)
     except:
         # backup scraper 
         print 'Amazon API failed. Scrape the hard way!'
-        return scrape_reviews_hard(product_id, checker)
+        return scrape_reviews_hard(product_id, prod_review_ids_db)
 
 
 if __name__ == "__main__":

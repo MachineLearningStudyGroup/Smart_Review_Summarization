@@ -20,15 +20,12 @@ def get_ft_dicts_from_contents(contents, predictor, start_idx = 0):
 def fill_in_db(product_id, predictor_name = 'MaxEntropy', review_ratio_threshold = 0.8, scrape_time_limit = 30):	
 	# fetch product info from db
 	query_res = select_for_product_id(product_id)
-	prod_contents = query_res[0]["contents"]
-	prod_ft_score_dict = query_res[0]["ft_score"]
-	prod_ft_senIdx_dict = query_res[0]["ft_senIdx"]
 
-	if len(prod_contents) == 0: # not in db yet
+	if len(query_res) == 0: # not in db yet
 		print "{0} not in db, now scraping...".format(product_id)
 		# scrape product info and review contents:
 		amazonScraper = createAmazonScraper()
-		product_name, prod_contents, prod_review_ids, prod_ratings, review_ending_sentence = scraper_main(amazonScraper, product_id, True, scrape_time_limit)
+		product_name, prod_contents, prod_review_ids, prod_ratings, review_ending_sentence = scraper_main(amazonScraper, product_id, [], scrape_time_limit)
 		prod_num_reviews, prod_category = scrape_num_review_and_category(product_id)
 		if prod_num_reviews == -1:
 			prod_num_reviews = len(prod_review_ids)
@@ -50,6 +47,12 @@ def fill_in_db(product_id, predictor_name = 'MaxEntropy', review_ratio_threshold
 	else:
 
 		print "{0} already in db".format(product_id)
+		# extract previous data in db:
+		prod_contents = query_res[0]["contents"]
+		prod_ft_score_dict = query_res[0]["ft_score"]
+		prod_ft_senIdx_dict = query_res[0]["ft_senIdx"]
+		prod_review_ids_db = query_res[0]["review_ids"]
+		
 		# scrape for total number of review and category
 		prod_num_reviews, prod_category = scrape_num_review_and_category(product_id)
 		prod_num_reviews_previous = query_res[0]['num_reviews']
@@ -65,7 +68,7 @@ def fill_in_db(product_id, predictor_name = 'MaxEntropy', review_ratio_threshold
 			print "But not enough reviews in db, scrapping for more..."
 			# scrape contents
 			amazonScraper = createAmazonScraper()
-			_, prod_contents_new, prod_review_ids, prod_ratings, review_ending_sentence = scraper_main(amazonScraper, product_id, True, scrape_time_limit)		
+			_, prod_contents_new, prod_review_ids, prod_ratings, review_ending_sentence = scraper_main(amazonScraper, product_id, prod_review_ids_db, scrape_time_limit)		
 
 			# classify, get sentiment score
 			predictor = loadTrainedPredictor(predictor_name)
