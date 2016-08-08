@@ -14,6 +14,7 @@ import warnings
 from amazon.api import AmazonAPI
 import dateutil.parser
 from bs4 import BeautifulSoup
+from fake_useragent import UserAgent
 from .version import __version__  # load our version
 
 if 'unicode' not in dir(globals()['__builtins__']):
@@ -31,7 +32,9 @@ html_parser = 'html.parser'
 #html_parser = 'html5lib'
 
 #user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1700.107 Safari/537.36'
-user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.94 Safari/537.36'
+# user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/37.0.2062.94 Safari/537.36'
+ua = UserAgent() #get user agent: http://www.whoishostingthis.com/tools/user-agent/ 
+user_agent = ua.random #or generate random one: https://pypi.python.org/pypi/fake-useragent
 
 amazon_base = 'http://www.amazon.com'
 
