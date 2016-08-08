@@ -10,6 +10,8 @@ import urllib
 import functools
 import time
 import requests
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 import warnings
 from amazon.api import AmazonAPI
 import dateutil.parser
