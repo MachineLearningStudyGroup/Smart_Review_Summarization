@@ -124,7 +124,7 @@ class AmazonReviewScraper:
             ratings.extend(result_tup[3])
             review_sentence_num.extend(result_tup[4])
 
-            # rs = self.amzn.reviews(URL=rs.next_page_url)
+            rs = self.amzn.reviews(URL=rs.next_page_url)
             current_time = time.time()
             print "time passed: %fs"%(current_time - start_time)
 
