@@ -1,6 +1,6 @@
 from configparser import ConfigParser, ExtendedInterpolation
 import sys
-import amazon_scraper
+from srs.amazon_scraper import AmazonScraper
 import time
 import datetime
 import logging.config
@@ -18,7 +18,7 @@ import random
 class AmazonReviewScraper:
     def __init__(self, access_key, 
         secret_key, assoc_tag, logger=None, debug=False):
-        self.amzn = amazon_scraper.AmazonScraper(
+        self.amzn = AmazonScraper(
             access_key,
             secret_key,
             assoc_tag)
