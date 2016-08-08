@@ -35,7 +35,7 @@ class AmazonReviewScraper:
         else:
             return ""
 
-    def process_reviews(self, rs, item_id, id_db, id_list, start_time, scrape_time_limit):
+    def process_reviews(self, rs, item_id, id_db, id_list):
         """
         Inputs: Amazon Reviews object, and a filehandle.
         Output: Returns number of reviews processed. Writes reviews to file.
@@ -50,10 +50,8 @@ class AmazonReviewScraper:
         ratings =[]
         review_sentence_num = []
         checker = len(id_db) > 0
-        
-        for r in rs.full_reviews():
-            current_time = time.time()
-           
+
+        for r in rs.full_reviews():     
             try:
                 if self.debug:
                     logging.debug(
@@ -91,9 +89,6 @@ class AmazonReviewScraper:
                             review_sentence_num.append(sentence_num)
                             review_ids.append(r.id)
                             ratings.append(float(r.rating) * 5) # rating directly from API is normalized to 1
-                        if current_time - start_time > scrape_time_limit:
-                            print "scrape_time_limit reached inside page"
-                            break
             except:
                 logging.warn('Encoding problem with review {}'.format(r.id))
 
@@ -119,7 +114,7 @@ class AmazonReviewScraper:
         id_list = []
         while current_time - start_time < scrape_time_limit:
             page_count += 1
-            result_tup = self.process_reviews(rs, item_id, prod_review_ids_db, id_list, start_time, scrape_time_limit)
+            result_tup = self.process_reviews(rs, item_id, prod_review_ids_db, id_list)
             count += result_tup[0]
             contents.extend(result_tup[1])
             review_ids.extend(result_tup[2])
@@ -131,7 +126,7 @@ class AmazonReviewScraper:
             print "time passed: %fs"%(current_time - start_time)
 
             if not rs.next_page_url:
-                result_tup = self.process_reviews(rs, item_id, prod_review_ids_db, id_list, start_time, scrape_time_limit)
+                result_tup = self.process_reviews(rs, item_id, prod_review_ids_db, id_list)
                 count += result_tup[0]
                 contents.extend(result_tup[1])
                 review_ids.extend(result_tup[2])
