@@ -94,7 +94,7 @@ class AmazonReviewScraper:
 
         return count, contents, review_ids, ratings, review_sentence_num
 
-    def scrape_reviews(self, item_id, prod_review_ids_db, scrape_time_limit = 30):
+    def scrape_reviews(self, item_id, prod_review_ids_db, prod_scraped_pages, scrape_time_limit = 30):
         """
         Fetches reviews for the Amazon product with the specified ItemId. 
         """
@@ -112,28 +112,46 @@ class AmazonReviewScraper:
         review_sentence_num = []
         product_name = p.title
         id_list = []
+        scraped_pages_new = []
+
         while current_time - start_time < scrape_time_limit:
             page_count += 1
-            result_tup = self.process_reviews(rs, item_id, prod_review_ids_db, id_list)
-            count += result_tup[0]
-            contents.extend(result_tup[1])
-            review_ids.extend(result_tup[2])
-            ratings.extend(result_tup[3])
-            review_sentence_num.extend(result_tup[4])
-
-            rs = self.amzn.reviews(URL=rs.next_page_url)
-            current_time = time.time()
-            print "time passed: %fs"%(current_time - start_time)
-
-            if not rs.next_page_url:
+            if page_count in prod_scraped_pages:
+                print "Page {0} already scraped, go on to next page".format(page_count)
+                rs = self.amzn.reviews(URL = rs.next_page_url)
+                current_time = time.time()
+            else:
+                print "scraping page {0}:".format(page_count)
                 result_tup = self.process_reviews(rs, item_id, prod_review_ids_db, id_list)
                 count += result_tup[0]
                 contents.extend(result_tup[1])
                 review_ids.extend(result_tup[2])
                 ratings.extend(result_tup[3])
                 review_sentence_num.extend(result_tup[4])
-                break
-            print "page_count: {0}".format(page_count)
+                scraped_pages_new.append(page_count)
+
+                rs = self.amzn.reviews(URL = rs.next_page_url)
+                current_time = time.time()
+                print "time passed: %fs"%(current_time - start_time)
+
+            if not rs.next_page_url:
+                page_count += 1
+                if page_count in prod_scraped_pages:
+                    print "Page {0} already scraped, now is the last page, skip.".format(page_count)
+                    break
+                else:
+                    if current_time - start_time > scrape_time_limit:
+                        break
+                    print "scraping page {0}:".format(page_count)
+                    result_tup = self.process_reviews(rs, item_id, prod_review_ids_db, id_list)
+                    count += result_tup[0]
+                    contents.extend(result_tup[1])
+                    review_ids.extend(result_tup[2])
+                    ratings.extend(result_tup[3])
+                    review_sentence_num.extend(result_tup[4])
+                    scraped_pages_new.append(page_count)
+                    print "time passed: %fs"%(current_time - start_time)
+                    break
         
         # getting the cumulative list for review_ending_sentence
         if len(review_sentence_num) ==0:
@@ -148,7 +166,7 @@ class AmazonReviewScraper:
         logging.info(
             "Collected {} reviews for item {} in {} seconds".format(
                 count, item_id, end - start_time))
-        return product_name, contents, review_ids, ratings, review_ending_sentence
+        return product_name, contents, review_ids, ratings, review_ending_sentence, scraped_pages_new
 
 def getAmazomConfidentialKeys():
     conf_file = os.path.join(
@@ -199,7 +217,7 @@ def scrape_reviews_hard(productID, prod_review_ids_db, max_scrape_loop = 1, curr
     However, it can only scrape the 5 top ranked review. 
     '''
     if current_loop > max_scrape_loop:
-        return [], [], [], [], []
+        return [], [], [], [], [], []
     else:
         try: 
             current_loop += 1
@@ -256,7 +274,9 @@ def scrape_reviews_hard(productID, prod_review_ids_db, max_scrape_loop = 1, curr
                     review_ending_sentence.append(num + review_ending_sentence[-1]) 
                 review_ending_sentence = review_ending_sentence[1:]
 
-            return product_name, contents, review_ids, ratings, review_ending_sentence
+            scraped_pages_new = [1]
+
+            return product_name, contents, review_ids, ratings, review_ending_sentence, scraped_pages_new
         except: 
             time.sleep(int(random.random() * 1.5 + 1) + random.random())
             print 'scraper failed, reinitiate for the %d th time' % current_loop
@@ -292,11 +312,12 @@ def scrape_num_review_and_category(productID, max_scrape_loop = 2, current_loop=
             return scrape_num_review_and_category(productID, max_scrape_loop, current_loop)
 
 
-def main(amazonScraper, product_id, prod_review_ids_db, scrape_time_limit = 30):
+def main(amazonScraper, product_id, prod_review_ids_db, prod_scraped_pages, scrape_time_limit = 30):
     try: 
-        product_name, contents, review_ids, ratings, review_ending_sentence = amazonScraper.scrape_reviews(product_id, prod_review_ids_db, scrape_time_limit)
+        product_name, contents, review_ids, ratings, review_ending_sentence, scraped_pages_new = \
+            amazonScraper.scrape_reviews(product_id, prod_review_ids_db, prod_scraped_pages, scrape_time_limit)
         if len(contents) > 0:
-            return product_name, contents, review_ids, ratings, review_ending_sentence
+            return product_name, contents, review_ids, ratings, review_ending_sentence, scraped_pages_new
         else:
             print "Amazon API scraper does not return contents, try backup scraper..."
             return scrape_reviews_hard(product_id, prod_review_ids_db)

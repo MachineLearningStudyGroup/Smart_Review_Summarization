@@ -25,7 +25,7 @@ def fill_in_db(product_id, predictor_name = 'MaxEntropy', review_ratio_threshold
 		print "{0} not in db, now scraping...".format(product_id)
 		# scrape product info and review contents:
 		amazonScraper = createAmazonScraper()
-		product_name, prod_contents, prod_review_ids, prod_ratings, review_ending_sentence = scraper_main(amazonScraper, product_id, [], scrape_time_limit)
+		product_name, prod_contents, prod_review_ids, prod_ratings, review_ending_sentence, scraped_pages_new = scraper_main(amazonScraper, product_id, [], [], scrape_time_limit)
 		prod_num_reviews, prod_category = scrape_num_review_and_category(product_id)
 		if prod_num_reviews == -1:
 			prod_num_reviews = len(prod_review_ids)
@@ -36,8 +36,8 @@ def fill_in_db(product_id, predictor_name = 'MaxEntropy', review_ratio_threshold
 		
 		# insert new entry
 		if len(prod_contents) > 0:
-			upsert_contents_for_product_id(product_id, product_name, prod_contents, \
-				prod_review_ids, prod_ratings, review_ending_sentence, prod_num_reviews, prod_category,\
+			upsert_contents_for_product_id(product_id, product_name, prod_contents, prod_review_ids,\
+			 prod_ratings, review_ending_sentence, scraped_pages_new, prod_num_reviews, prod_category, \
 				prod_ft_score_dict, prod_ft_senIdx_dict)
 			return True
 		else:
@@ -52,7 +52,8 @@ def fill_in_db(product_id, predictor_name = 'MaxEntropy', review_ratio_threshold
 		prod_ft_score_dict = query_res[0]["ft_score"]
 		prod_ft_senIdx_dict = query_res[0]["ft_senIdx"]
 		prod_review_ids_db = query_res[0]["review_ids"]
-		
+		prod_scraped_pages = query_res[0]["scraped_pages"]
+
 		# scrape for total number of review and category
 		prod_num_reviews, prod_category = scrape_num_review_and_category(product_id)
 		prod_num_reviews_previous = query_res[0]['num_reviews']
@@ -68,7 +69,8 @@ def fill_in_db(product_id, predictor_name = 'MaxEntropy', review_ratio_threshold
 			print "But not enough reviews in db, scrapping for more..."
 			# scrape contents
 			amazonScraper = createAmazonScraper()
-			_, prod_contents_new, prod_review_ids, prod_ratings, review_ending_sentence = scraper_main(amazonScraper, product_id, prod_review_ids_db, scrape_time_limit)		
+			_, prod_contents_new, prod_review_ids, prod_ratings, review_ending_sentence, scraped_pages_new = \
+			scraper_main(amazonScraper, product_id, prod_review_ids_db, prod_scraped_pages, scrape_time_limit)		
 
 			# classify, get sentiment score
 			predictor = loadTrainedPredictor(predictor_name)
@@ -83,7 +85,7 @@ def fill_in_db(product_id, predictor_name = 'MaxEntropy', review_ratio_threshold
 				
 				# append new entry to existing entry
 				update_contents_for_product_id(product_id, prod_contents_new, prod_review_ids, \
-					prod_ratings, review_ending_sentence, prod_category, \
+					prod_ratings, review_ending_sentence, scraped_pages_new, prod_category, \
 					prod_ft_score_dict, prod_ft_senIdx_dict)
 				return True
 
@@ -109,7 +111,7 @@ def fill_in_db(product_id, predictor_name = 'MaxEntropy', review_ratio_threshold
 				get_ft_dicts_from_contents(prod_contents, predictor)
 				
 				# update old entry
-				update_for_product_id(product_id, prod_ft_score_dict, prod_ft_senIdx_dict)
+				update_score_for_product_id(product_id, prod_ft_score_dict, prod_ft_senIdx_dict)
 
 				return True
 			else:
