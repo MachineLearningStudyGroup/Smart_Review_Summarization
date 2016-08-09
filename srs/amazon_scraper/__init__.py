@@ -228,10 +228,10 @@ def rate_limit(api):
 
 # This schema of imports is non-standard and should change. It will require some re-ordering of
 # functions inside the package though.
-from amazon_scraper.product import Product
-from amazon_scraper.reviews import Reviews
-from amazon_scraper.review import Review
-from amazon_scraper.user_reviews import UserReviews
+from srs.amazon_scraper.product import Product
+from srs.amazon_scraper.reviews import Reviews
+from srs.amazon_scraper.review import Review
+from srs.amazon_scraper.user_reviews import UserReviews
 
 
 class AmazonScraper(object):

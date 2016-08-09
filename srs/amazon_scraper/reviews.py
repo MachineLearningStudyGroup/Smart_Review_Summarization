@@ -6,7 +6,7 @@ except:
     import urllib.parse as urlparse
 import warnings
 from bs4 import BeautifulSoup
-from amazon_scraper import (
+from srs.amazon_scraper import (
     get,
     review_url,
     reviews_url,

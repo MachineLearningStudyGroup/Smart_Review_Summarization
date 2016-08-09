@@ -8,7 +8,7 @@ import json
 import re
 import xmltodict
 from bs4 import BeautifulSoup
-from amazon_scraper import (
+from srs.amazon_scraper import (
     get,
     product_url,
     extract_asin,
