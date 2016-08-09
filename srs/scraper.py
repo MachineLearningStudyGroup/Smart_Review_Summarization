@@ -118,8 +118,12 @@ class AmazonReviewScraper:
             page_count += 1
             if page_count in prod_scraped_pages:
                 print "Page {0} already scraped, go on to next page".format(page_count)
-                rs = self.amzn.reviews(URL = rs.next_page_url)
-                current_time = time.time()
+                if rs.next_page_url:
+                    rs = self.amzn.reviews(URL = rs.next_page_url)
+                    current_time = time.time()
+                else:
+                    print "Now is the last page."
+                    break
             else:
                 print "scraping page {0}:".format(page_count)
                 result_tup = self.process_reviews(rs, item_id, prod_review_ids_db, id_list)
@@ -129,28 +133,14 @@ class AmazonReviewScraper:
                 ratings.extend(result_tup[3])
                 review_sentence_num.extend(result_tup[4])
                 scraped_pages_new.append(page_count)
-
-                rs = self.amzn.reviews(URL = rs.next_page_url)
                 current_time = time.time()
                 print "time passed: %fs"%(current_time - start_time)
 
-            if not rs.next_page_url:
-                page_count += 1
-                if page_count in prod_scraped_pages:
-                    print "Page {0} already scraped, now is the last page, skip.".format(page_count)
-                    break
+                if rs.next_page_url:
+                    rs = self.amzn.reviews(URL = rs.next_page_url)
+                
                 else:
-                    if current_time - start_time > scrape_time_limit:
-                        break
-                    print "scraping page {0}:".format(page_count)
-                    result_tup = self.process_reviews(rs, item_id, prod_review_ids_db, id_list)
-                    count += result_tup[0]
-                    contents.extend(result_tup[1])
-                    review_ids.extend(result_tup[2])
-                    ratings.extend(result_tup[3])
-                    review_sentence_num.extend(result_tup[4])
-                    scraped_pages_new.append(page_count)
-                    print "time passed: %fs"%(current_time - start_time)
+                    print "Now is the last page."
                     break
         
         # getting the cumulative list for review_ending_sentence
@@ -334,5 +324,5 @@ if __name__ == "__main__":
     productID = 'B00000JDEE'
 
     a = createAmazonScraper()
-    result = main(a,productID, True, 60)
+    result = main(a,productID, [], [], 500)
     print result
