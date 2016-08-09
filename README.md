@@ -20,6 +20,13 @@ nltk.download()
 ```
 choose `punkt` for tokenizer, `sentiwordnet` and `wordnet` for corpora.
 
+### `MongoDB` configuration
+To enable fast query and update with product_id, enter
+```
+db.product_collection.createIndex({"product_id":1})
+```
+in MongoDB shell, to index the "product_id" field. 
+
 ## Installation
 Append package directory `/path/to/Smart_Review_Summarization` into PYTHONPATH
 

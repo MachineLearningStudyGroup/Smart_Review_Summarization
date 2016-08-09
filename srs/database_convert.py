@@ -1,4 +1,4 @@
-from pymongo import MongoClient
+from pymongo import MongoClient, ASCENDING
 from utilities import getSentencesFromReview
 from srs_local import get_ft_dicts_from_contents
 from predictor import loadTrainedPredictor
@@ -153,6 +153,7 @@ def upsert_new_product(db_product_collection, product_id, product_name, category
 		"review_ids": review_ids,
 		"ratings": ratings,
 		"review_ending_sentence": review_ending_sentence,
+		"scraped_pages": [],
 		"num_reviews": num_reviews,	
 		"ft_senIdx": ft_senIdx,
 		"ft_score": ft_score
@@ -165,6 +166,7 @@ def upsert_all_reviews_bulk(review_file_path, meta_dict):
 	reviewParser = parse(review_file_path)
 	client, db = connect_to_db()
 	db_product_collection = db.product_collection
+	db_product_collection.create_index([("product_id", ASCENDING)])
 
 	i=0
 	num_found = 0
