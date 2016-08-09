@@ -8,9 +8,14 @@ dependencies:
   - lxml
   - nltk
   - scipy
+  - sklearn
   - matplotlib
   - flask
   - pandas
   - bokeh
-#  - fake_useragent
-#  - amazon_scraper
+  - requests
+  - python-amazon-simple-product-api
+  - bs4
+  - fake_useragent
+  - xmltodict
+  - word2vec
