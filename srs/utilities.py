@@ -39,7 +39,7 @@ def getSentencesFromReview(reviewContent):
             final_sentences.append(sentence)
     return final_sentences
 
-def tokenize(string, stem=True):
+def tokenize(string, stem=True, entire=False):
     """
     INPUT: string
     OUTPUT: a list of words
@@ -54,7 +54,11 @@ def tokenize(string, stem=True):
 
     #filter out stopwords 
     STOPWORDS = set(nltk.corpus.stopwords.words('english'))
-    STOPWORDS.update(('nikon','would','does','got',"doesn't",'well'))
+    STOPWORDS.update(('nikon','would','does','got',"doesn't",'well','somehow', 'someone', 'something', 'sometime', 'sometimes', 'somewhere'))
+    if entire:
+        # if need a larger set
+        stopwords_entire_list = loadEntireStopWord()
+        STOPWORDS.update(set(stopwords_entire_list))
     token_list = [word for word in token_list if word not in STOPWORDS]
 
     #stemmer 
@@ -114,6 +118,18 @@ def loadScraperDataFromDB(product_id):
         return query_res[0]["contents"], query_res[0]["ft_score"], query_res[0]["ft_senIdx"]
     else:
         return [], {}, {}
+
+def loadEntireStopWord():
+    '''
+    load from txt file
+    return a list of stopwords
+    '''
+    with open("predictor_data/entire_stopword.txt", "r") as filestream:
+        for line in filestream:
+            line = line.replace(" ","")
+            stopwords_entire_list = line.split(",")
+    return stopwords_entire_list
+
         
 class Sentence(object):
     def __init__(self, content, tokens=[], labeled_aspects='', sentiment=None, word2vec_features_list=[]):
