@@ -7,19 +7,13 @@ import os
 import re
 import copy
 import word2vec
+from nltk.corpus import wordnet as wn
 
-def eval_f_vec(sentence,wordlist_dict):
+def eval_f_vec(token_list,wordlist_dict):
     """
-    sentence: a single labelled sentence obj 
-    returns a vector of length len(wordlist_dict)
+    token_list: a list of tokens from content
+    returns f_vec in the form of dictionary
     """
-    #tokenize the sentence if not already
-    if not sentence.tokens:
-    	# not tokenize before 
-    	token_list = tokenize(sentence.content, stem=False)
-    	sentence.tokens = token_list
-    else:
-		token_list = sentence.tokens
     len_word = max(len(token_list),1)*1.0;
     f_vec = copy.deepcopy(wordlist_dict) #speed up by putting copy and reset outside
     #reset to zero 
@@ -35,7 +29,7 @@ def eval_f_vec(sentence,wordlist_dict):
     #returns a dictionary with frequency 
     return f_vec
 
-def cond_prob(f_vec,wordlist_dict):
+def cond_prob(f_vec,wordlist_dict,const_wt=False):
 	'''
 	only the numerator since we only need it for prediction
 	'''
@@ -43,31 +37,49 @@ def cond_prob(f_vec,wordlist_dict):
 	for key in f_vec.keys():
 		dot_product = 0.0
 		for i in range(len(wordlist_dict[key])):
-			dot_product += np.exp(wordlist_dict[key][i][1]*f_vec[key][i][1])
+			if const_wt:
+				dot_product += np.exp(f_vec[key][i][1]*1)
+			else: 
+				dot_product += np.exp(f_vec[key][i][1]*wordlist_dict[key][i][1])
 
 		score_dict[key] = dot_product/len(wordlist_dict[key]) # min score is 1
 
+	print score_dict
 	return score_dict
 
 def sentence_prediction(sentence,wordlist_dict,w2v_model,thres):
 	'''
 	predict aspect based on the score_dict. The default is the maximum
 	'''
-	f_vec = eval_f_vec(sentence,wordlist_dict)
+	#tokenize the sentence if not already
+	if not sentence.tokens:
+		# not tokenize before 
+		token_list = tokenize(sentence.content, stem=False)
+		sentence.tokens = token_list
+	else:
+		token_list = sentence.tokens
+
+	f_vec = eval_f_vec(token_list,wordlist_dict)
 	score_dict = cond_prob(f_vec,wordlist_dict)
 	# print f_vec
 	predicted_aspect = max(score_dict.iteritems(), key=operator.itemgetter(1))[0]
 	if score_dict[predicted_aspect] == 1: # no key word overlap
-		#call word2vec similarity 
-		# score_dict_w2v = word2vec_predict(sentence,wordlist_dict,w2v_model)
-		# predicted_aspect = max(score_dict_w2v.iteritems(), key=operator.itemgetter(1))[0]
-		# if score_dict_w2v[predicted_aspect] < thres:
-		predicted_aspect = 'no feature'
+		# get another list of token from definition
+		token_list_expand = createTokenDefinition(token_list)
+		f_vec_expand = eval_f_vec(token_list_expand,wordlist_dict)
+		score_dict_expand = cond_prob(f_vec_expand,wordlist_dict,const_wt=True) 
+		predicted_aspect = max(score_dict_expand.iteritems(), key=operator.itemgetter(1))[0]
+		if score_dict_expand[predicted_aspect] == 1:
+			#call word2vec similarity 
+			score_dict_w2v = word2vec_predict(token_list_expand,wordlist_dict,w2v_model)
+			predicted_aspect = max(score_dict_w2v.iteritems(), key=operator.itemgetter(1))[0]
+			if score_dict_w2v[predicted_aspect] < thres:
+				predicted_aspect = 'no feature'
 
 	sentence.static_aspect = predicted_aspect
 
-def word2vec_predict(sentence,wordlist_dict,w2v_model):
-	s_vec = eval_s_vec(sentence,wordlist_dict,w2v_model)
+def word2vec_predict(token_list,wordlist_dict,w2v_model):
+	s_vec = eval_s_vec(token_list,wordlist_dict,w2v_model)
 	#post process to return an aspect of most similar
 	score_dict_w2v = dict.fromkeys(s_vec, 0)
 	# 1. get the maximum of each seed without weight (weight doesn't do well)
@@ -80,11 +92,10 @@ def word2vec_predict(sentence,wordlist_dict,w2v_model):
 				similarity_wt_max = similarity_wt
 		score_dict_w2v[key] = similarity_wt_max 
 
+	print score_dict_w2v
 	return score_dict_w2v
 
-def eval_s_vec(sentence,wordlist_dict,w2v_model):
-	token_list_full = sentence.tokens
-	token_list = distill_token(token_list_full)
+def eval_s_vec(token_list,wordlist_dict,w2v_model):
 	# create cosine similarity matrix
 	s_vec = copy.deepcopy(wordlist_dict) #speed up by putting copy and reset outside
 	#reset to zero 
@@ -109,21 +120,26 @@ def eval_s_vec(sentence,wordlist_dict,w2v_model):
 
 	return s_vec
 
-def distill_token(token_list):
-
-	from nltk.corpus import stopwords
-	token_list_distill = [word for word in token_list if word not in stopwords.words('english')]
-
-	return token_list_distill
-
 def getPredictorDataFilePath(filename):
-		
 	predictor_datafile_path = os.path.join(settings["predictor_data"], filename)
 	if os.path.exists(predictor_datafile_path):
 		return predictor_datafile_path
 	else:
 		raise Exception("{} is not found!".format(predictor_datafile_path))
 
+def createTokenDefinition(token_list):
+	token_list_expand = []
+	for token in token_list:
+		def_noun = wn.synsets(token,pos=wn.NOUN)
+		def_adj = wn.synsets(token,pos=wn.ADJ)
+		if len(def_noun) > 0:
+			def_string = def_noun[0].definition()
+		elif len(def_adj) > 0: 
+			def_string = def_adj[0].definition()
+
+		token_list_expand = token_list_expand + tokenize(def_string,stem=False,entire=False)#entire => larger set of stopword
+	print token_list_expand
+	return token_list_expand
 
 if __name__ == '__main__':
 	static_traning_data_dir = settings["static_training_data"]
@@ -142,11 +158,19 @@ if __name__ == '__main__':
 
 	#begin testing
 	# sentence = sentences[122] # change index for different sentences 
-	sentence = Sentence('I find it easy to operate.')
-
+	# sentence = Sentence('I find it easy to operate.')
+	# content = "Obviously, if you're a serious photographer, this is not the camera for you, but for me, it's great."
+	# content = 'After several hours of use, the flickering seemed to mostly go away, but not entirely.' #success
+	# content = "I know it's a lot to ask from an entry-level camera, but even for basic use I am not comfortable with a camera that seems to miss 2 out of every 3 shots." #success
+	content = "I found the menu to be clunky, and many basic features like shutter and aperture settings, manual focus (or at least a user-selected Macro mode) were either lacking entirely or buried in some menu that I couldn't find when I needed it"
+	sentence = Sentence(content)
 	print sentence.content
 	sentence_prediction(sentence,wordlist_dict,w2v_model,0.85)
 	print sentence.static_aspect
 	print sentence.labeled_aspects
 
+	# test createTokenDefinition
+	# token_list = [u'week', u'test', u'run', u'every', u'situation', u'night', u'action', u'inside', u'outside', u'object', u'people']
+	# token_list_expand = createTokenDefinition(token_list)
+	# print token_list_expand
 
