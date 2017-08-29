@@ -66,7 +66,7 @@ class Review(object):
 
     @property
     def title(self):
-        tag = self.soup.find('span', class_='summary')
+        tag = self.soup.find('a', class_='review-title')
         title = unicode(tag.string)
         return title.strip()
 
@@ -86,17 +86,16 @@ class Review(object):
 
     @property
     def date(self):
-        abbr = self.soup.find('abbr', class_='dtreviewed')
-        return get_review_date(abbr["title"])
+        tag = self.soup.find('span', class_='review-date')
+        if tag:
+            return get_review_date(strip_html_tags(unicode(tag)))
+        return None
 
     @property
     def user(self):
-        vcard = self.soup.find('span', class_='reviewer vcard')
-        if vcard:
-            tag = vcard.find(class_='fn')
-            if tag:
-                user = unicode(tag.string)
-                return user
+        tag = self.soup.find('a', class_='author')
+        if tag:
+            return strip_html_tags(unicode(tag))
         return None
 
     @property
@@ -123,7 +122,7 @@ class Review(object):
 
     @property
     def text(self):
-        tag = self.soup.find('span', class_='description')
+        tag = self.soup.find('span', class_='review-text')
         return strip_html_tags(unicode(tag))
 
     def product(self):
